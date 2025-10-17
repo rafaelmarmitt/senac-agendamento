@@ -35,7 +35,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link to="/sobre" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                  Sobre o Sistema
+                  Sobre o Sistemaaa
                 </Link>
               </li>
             </ul>
