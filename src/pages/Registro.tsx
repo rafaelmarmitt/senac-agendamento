@@ -1,5 +1,7 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,21 +9,50 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Calendar, Mail, Lock, User } from "lucide-react";
 
 export default function Registro() {
-  const [formData, setFormData] = useState({
-    nome: "",
-    email: "",
-    password: "",
-    confirmPassword: ""
-  });
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { signUp, user } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
 
-  const handleRegister = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
+
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Lógica de registro será implementada com o backend
-    console.log("Register attempt:", formData);
-  };
+    
+    if (password !== confirmPassword) {
+      toast({
+        title: "Erro no cadastro",
+        description: "As senhas não coincidem!",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setLoading(true);
+    const { error } = await signUp(email, password, nome);
+
+    if (error) {
+      toast({
+        title: "Erro ao cadastrar",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Cadastro realizado!",
+        description: "Você já pode fazer login.",
+      });
+    }
+
+    setLoading(false);
   };
 
   return (
@@ -51,8 +82,8 @@ export default function Registro() {
                   id="nome"
                   type="text"
                   placeholder="João Silva"
-                  value={formData.nome}
-                  onChange={(e) => handleChange("nome", e.target.value)}
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
                   className="pl-9"
                   required
                 />
@@ -67,8 +98,8 @@ export default function Registro() {
                   id="email"
                   type="email"
                   placeholder="seu.email@senac.br"
-                  value={formData.email}
-                  onChange={(e) => handleChange("email", e.target.value)}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="pl-9"
                   required
                 />
@@ -86,8 +117,8 @@ export default function Registro() {
                   id="password"
                   type="password"
                   placeholder="••••••••"
-                  value={formData.password}
-                  onChange={(e) => handleChange("password", e.target.value)}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="pl-9"
                   required
                 />
@@ -102,8 +133,8 @@ export default function Registro() {
                   id="confirmPassword"
                   type="password"
                   placeholder="••••••••"
-                  value={formData.confirmPassword}
-                  onChange={(e) => handleChange("confirmPassword", e.target.value)}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                   className="pl-9"
                   required
                 />
@@ -126,8 +157,8 @@ export default function Registro() {
               </label>
             </div>
 
-            <Button type="submit" className="w-full" size="lg">
-              Criar Conta
+            <Button type="submit" className="w-full" size="lg" disabled={loading}>
+              {loading ? "Criando conta..." : "Criar Conta"}
             </Button>
 
             <div className="text-center text-sm text-muted-foreground">
