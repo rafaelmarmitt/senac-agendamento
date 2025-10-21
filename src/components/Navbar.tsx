@@ -32,12 +32,6 @@ export default function Navbar() {
             >
               Salas
             </Link>
-            <Link 
-              to="/sobre" 
-              className="text-sm font-medium text-foreground hover:text-primary transition-colors"
-            >
-              Sobre
-            </Link>
           </div>
 
           {/* Auth Buttons */}
@@ -78,12 +72,6 @@ export default function Navbar() {
               className="block px-4 py-2 text-sm font-medium text-foreground hover:text-primary hover:bg-secondary rounded-md transition-colors"
             >
               Salas
-            </Link>
-            <Link 
-              to="/sobre" 
-              className="block px-4 py-2 text-sm font-medium text-foreground hover:text-primary hover:bg-secondary rounded-md transition-colors"
-            >
-              Sobre
             </Link>
             <div className="px-4 pt-2 space-y-2">
               <Button variant="ghost" size="sm" className="w-full" asChild>
