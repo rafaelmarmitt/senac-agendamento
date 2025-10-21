@@ -5,7 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, Clock, Users, Wrench } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Calendar, Clock, Users, Wrench, Plus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface AgendamentoModalProps {
@@ -17,6 +19,17 @@ interface AgendamentoModalProps {
   };
 }
 
+const recursosAdicionais = [
+  "Microfone sem fio",
+  "Notebook extra",
+  "Câmera de vídeo",
+  "Mesa digitalizadora",
+  "Suporte técnico presencial",
+  "Cadeiras extras",
+  "Flip chart",
+  "Kit multimídia completo",
+];
+
 export default function AgendamentoModal({ open, onOpenChange, sala }: AgendamentoModalProps) {
   const [formData, setFormData] = useState({
     data: "",
@@ -26,13 +39,22 @@ export default function AgendamentoModal({ open, onOpenChange, sala }: Agendamen
     motivo: "",
     equipamentos: "",
   });
+  const [recursosExtras, setRecursosExtras] = useState<string[]>([]);
+
+  const toggleRecurso = (recurso: string) => {
+    setRecursosExtras((prev) =>
+      prev.includes(recurso) ? prev.filter((r) => r !== recurso) : [...prev, recurso]
+    );
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    const recursos = recursosExtras.length > 0 ? recursosExtras.join(", ") : "Nenhum recurso adicional";
+    
     toast({
-      title: "Solicitação Enviada",
-      description: "Seu pedido de agendamento foi enviado para aprovação.",
+      title: "Solicitação Enviada!",
+      description: `Seu pedido de agendamento foi enviado para aprovação. ${recursosExtras.length > 0 ? 'Recursos adicionais solicitados: ' + recursos : ''}`,
     });
     
     onOpenChange(false);
@@ -44,6 +66,7 @@ export default function AgendamentoModal({ open, onOpenChange, sala }: Agendamen
       motivo: "",
       equipamentos: "",
     });
+    setRecursosExtras([]);
   };
 
   return (
@@ -152,14 +175,55 @@ export default function AgendamentoModal({ open, onOpenChange, sala }: Agendamen
           <div className="space-y-2">
             <Label htmlFor="equipamentos" className="flex items-center gap-2">
               <Wrench className="h-4 w-4" />
-              Equipamentos Necessários
+              Equipamentos Necessários (Padrão da Sala)
             </Label>
             <Textarea
               id="equipamentos"
               placeholder="Ex: Projetor, Computadores, Quadro branco..."
               value={formData.equipamentos}
               onChange={(e) => setFormData({ ...formData, equipamentos: e.target.value })}
+              rows={2}
             />
+            <p className="text-xs text-muted-foreground">
+              Equipamentos já disponíveis na sala. Use o campo abaixo para solicitar recursos extras.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <Label className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Recursos Adicionais (Opcional)
+            </Label>
+            <p className="text-sm text-muted-foreground">
+              Selecione recursos extras que você precisa para sua atividade:
+            </p>
+            <div className="grid grid-cols-2 gap-3 p-4 bg-secondary/30 rounded-lg">
+              {recursosAdicionais.map((recurso) => (
+                <div key={recurso} className="flex items-start space-x-2">
+                  <Checkbox
+                    id={`recurso-${recurso}`}
+                    checked={recursosExtras.includes(recurso)}
+                    onCheckedChange={() => toggleRecurso(recurso)}
+                  />
+                  <Label
+                    htmlFor={`recurso-${recurso}`}
+                    className="text-sm cursor-pointer leading-tight"
+                  >
+                    {recurso}
+                  </Label>
+                </div>
+              ))}
+            </div>
+            {recursosExtras.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                <span className="text-xs text-muted-foreground mr-1">Selecionados:</span>
+                {recursosExtras.map((recurso) => (
+                  <Badge key={recurso} variant="secondary" className="text-xs">
+                    {recurso}
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
 
           <DialogFooter>

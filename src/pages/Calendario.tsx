@@ -4,9 +4,11 @@ import Footer from "@/components/Footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, MapPin, Users, Filter, Search } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, Filter, Search, Zap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import WizardAgendamento from "@/components/WizardAgendamento";
+import SalaDetalhesModal from "@/components/SalaDetalhesModal";
 
 // Mock data - será substituído por dados reais do backend
 const mockSalas = [
@@ -31,6 +33,11 @@ export default function Calendario() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTipo, setFilterTipo] = useState("todos");
+  const [filterCapacidade, setFilterCapacidade] = useState("");
+  const [filterHorario, setFilterHorario] = useState("");
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [detalhesOpen, setDetalhesOpen] = useState(false);
+  const [salaSelecionada, setSalaSelecionada] = useState<any>(null);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -50,6 +57,24 @@ export default function Calendario() {
     }
   };
 
+  const handleVerDetalhes = (sala: any) => {
+    setSalaSelecionada(sala);
+    setDetalhesOpen(true);
+  };
+
+  const salasFiltradasFiltradas = mockSalas.filter((sala) => {
+    const matchSearch = sala.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       sala.tipo.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchTipo = filterTipo === "todos" || 
+                     (filterTipo === "sala" && sala.tipo.includes("Sala de Aula")) ||
+                     (filterTipo === "laboratorio" && sala.tipo.includes("Laboratório")) ||
+                     (filterTipo === "auditorio" && sala.tipo.includes("Auditório"));
+    const matchCapacidade = !filterCapacidade || sala.capacidade >= parseInt(filterCapacidade);
+    const matchHorario = !filterHorario || sala.horario === filterHorario;
+    
+    return matchSearch && matchTipo && matchCapacidade && matchHorario;
+  });
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -57,11 +82,17 @@ export default function Calendario() {
       <main className="flex-1 py-12">
         <div className="container mx-auto px-4">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold mb-2">Calendário de Salas</h1>
-            <p className="text-muted-foreground">
-              Visualize a disponibilidade das salas em tempo real
-            </p>
+          <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-4xl font-bold mb-2">Calendário de Salas</h1>
+              <p className="text-muted-foreground">
+                Visualize a disponibilidade das salas em tempo real
+              </p>
+            </div>
+            <Button size="lg" onClick={() => setWizardOpen(true)} className="flex items-center gap-2">
+              <Zap className="h-5 w-5" />
+              Agendamento Rápido
+            </Button>
           </div>
 
           {/* Filters */}
@@ -73,7 +104,7 @@ export default function Calendario() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -94,11 +125,19 @@ export default function Calendario() {
                     <SelectItem value="auditorio">Auditório</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select>
+                <Input
+                  type="number"
+                  placeholder="Capacidade mínima"
+                  value={filterCapacidade}
+                  onChange={(e) => setFilterCapacidade(e.target.value)}
+                  min="1"
+                />
+                <Select value={filterHorario} onValueChange={setFilterHorario}>
                   <SelectTrigger>
                     <SelectValue placeholder="Horário" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="">Todos os horários</SelectItem>
                     {horarios.map((horario) => (
                       <SelectItem key={horario} value={horario}>
                         {horario}
@@ -106,6 +145,16 @@ export default function Calendario() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={() => {
+                  setSearchTerm("");
+                  setFilterTipo("todos");
+                  setFilterCapacidade("");
+                  setFilterHorario("");
+                }}>
+                  Limpar Filtros
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -127,8 +176,13 @@ export default function Calendario() {
           </div>
 
           {/* Salas Grid */}
+          <div className="mb-4">
+            <p className="text-sm text-muted-foreground">
+              Mostrando {salasFiltradasFiltradas.length} de {mockSalas.length} salas
+            </p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {mockSalas.map((sala) => (
+            {salasFiltradasFiltradas.map((sala) => (
               <Card key={sala.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-start justify-between">
@@ -158,13 +212,13 @@ export default function Calendario() {
                   </div>
 
                   {sala.status === "disponivel" && (
-                    <Button className="w-full" variant="default">
+                    <Button className="w-full" variant="default" onClick={() => setWizardOpen(true)}>
                       <Calendar className="h-4 w-4" />
                       Agendar Sala
                     </Button>
                   )}
                   {sala.status === "ocupada" && (
-                    <Button className="w-full" variant="outline" disabled>
+                    <Button className="w-full" variant="outline" onClick={() => handleVerDetalhes(sala)}>
                       Ver Detalhes
                     </Button>
                   )}
@@ -191,6 +245,13 @@ export default function Calendario() {
           </Card>
         </div>
       </main>
+
+      <WizardAgendamento open={wizardOpen} onOpenChange={setWizardOpen} />
+      <SalaDetalhesModal 
+        open={detalhesOpen} 
+        onOpenChange={setDetalhesOpen} 
+        sala={salaSelecionada}
+      />
 
       <Footer />
     </div>
