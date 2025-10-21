@@ -5,18 +5,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Clock, CheckCircle2, XCircle, AlertCircle, Plus, RefreshCw, QrCode, Download, Loader2 } from "lucide-react";
+import { Calendar, Clock, CheckCircle2, XCircle, AlertCircle, Plus, RefreshCw, Download, Loader2, FileText } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import WizardAgendamento from "@/components/WizardAgendamento";
 import { useBookings } from "@/hooks/useBookings";
 import { useAuth } from "@/contexts/AuthContext";
-import { format } from "date-fns";
+import { format, differenceInMinutes, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export default function Dashboard() {
   const [selectedTab, setSelectedTab] = useState("minhas-reservas");
   const [wizardOpen, setWizardOpen] = useState(false);
-  const { bookings, loading, cancelBooking } = useBookings(true);
+  const { bookings, loading, cancelBooking, checkIn } = useBookings(true);
   const { user } = useAuth();
 
   const stats = useMemo(() => {
@@ -34,11 +34,31 @@ export default function Dashboard() {
     };
   }, [bookings]);
 
-  const handleCheckIn = (reservaId: string) => {
-    toast({
-      title: "Check-in Realizado!",
-      description: "Sua reserva foi confirmada. A sala está liberada para uso.",
-    });
+  const canCheckIn = (reserva: any) => {
+    if (reserva.check_in_at) return false;
+    
+    const now = new Date();
+    const bookingDateTime = parseISO(`${reserva.data}T${reserva.hora_inicio}`);
+    const minutesUntilBooking = differenceInMinutes(bookingDateTime, now);
+    
+    return minutesUntilBooking <= 30 && minutesUntilBooking >= -60;
+  };
+
+  const handleCheckIn = async (reservaId: string) => {
+    const { error } = await checkIn(reservaId);
+    
+    if (error) {
+      toast({
+        title: "Erro ao fazer check-in",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Check-in Realizado!",
+        description: "Sua reserva foi confirmada. A sala está liberada para uso.",
+      });
+    }
   };
 
   const handleCancelar = async (reservaId: string) => {
@@ -67,9 +87,66 @@ export default function Dashboard() {
   };
 
   const handleExportarCalendario = (reserva: any) => {
+    const startDate = new Date(`${reserva.data}T${reserva.hora_inicio}`);
+    const endDate = new Date(`${reserva.data}T${reserva.hora_fim}`);
+    
+    const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Senac Agendamento//PT
+BEGIN:VEVENT
+UID:${reserva.id}@senac
+DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z
+DTSTART:${startDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z
+DTEND:${endDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z
+SUMMARY:Reserva - ${reserva.rooms?.nome}
+DESCRIPTION:${reserva.motivo}
+LOCATION:${reserva.rooms?.nome}
+STATUS:CONFIRMED
+END:VEVENT
+END:VCALENDAR`;
+
+    const blob = new Blob([icsContent], { type: 'text/calendar' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `reserva-${format(startDate, 'dd-MM-yyyy')}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
     toast({
       title: "Exportar para Calendário",
       description: "Arquivo .ics baixado! Importe-o no Google Calendar ou Outlook.",
+    });
+  };
+
+  const handleDownloadRelatorio = () => {
+    const csvContent = [
+      ['Data', 'Horário', 'Sala', 'Participantes', 'Motivo', 'Status'].join(','),
+      ...bookings.map(b => [
+        format(new Date(b.data), 'dd/MM/yyyy'),
+        `${b.hora_inicio}-${b.hora_fim}`,
+        b.rooms?.nome || '',
+        b.participantes,
+        b.motivo.replace(/,/g, ';'),
+        getStatusLabel(b.status)
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `relatorio-reservas-${format(new Date(), 'dd-MM-yyyy')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Relatório Baixado",
+      description: "Seu relatório foi baixado com sucesso!",
     });
   };
 
@@ -110,11 +187,17 @@ export default function Dashboard() {
       <main className="flex-1 py-12">
         <div className="container mx-auto px-4">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold mb-2">Meu Dashboard</h1>
-            <p className="text-muted-foreground">
-              Bem-vindo de volta! Gerencie seus agendamentos aqui.
-            </p>
+          <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-bold mb-2">Meu Dashboard</h1>
+              <p className="text-muted-foreground">
+                Bem-vindo de volta! Gerencie seus agendamentos aqui.
+              </p>
+            </div>
+            <Button onClick={handleDownloadRelatorio} variant="outline" className="w-full sm:w-auto">
+              <FileText className="h-4 w-4 mr-2" />
+              Baixar Relatório
+            </Button>
           </div>
 
           {/* Stats Cards */}
@@ -155,9 +238,9 @@ export default function Dashboard() {
 
           {/* Tabs */}
           <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-            <TabsList className="mb-6">
-              <TabsTrigger value="minhas-reservas">Minhas Reservas</TabsTrigger>
-              <TabsTrigger value="nova-reserva">Nova Reserva</TabsTrigger>
+            <TabsList className="mb-6 w-full sm:w-auto">
+              <TabsTrigger value="minhas-reservas" className="flex-1 sm:flex-initial">Minhas Reservas</TabsTrigger>
+              <TabsTrigger value="nova-reserva" className="flex-1 sm:flex-initial">Nova Reserva</TabsTrigger>
             </TabsList>
 
             <TabsContent value="minhas-reservas" className="space-y-4">
@@ -183,10 +266,10 @@ export default function Dashboard() {
                 bookings.map((reserva) => (
                   <Card key={reserva.id} className={reserva.status === "rejected" ? "opacity-70" : ""}>
                     <CardHeader>
-                      <div className="flex items-start justify-between">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                         <div className="space-y-2">
-                          <CardTitle>{reserva.rooms?.nome || "Sala"}</CardTitle>
-                          <CardDescription className="flex flex-wrap items-center gap-4">
+                          <CardTitle className="text-lg sm:text-xl">{reserva.rooms?.nome || "Sala"}</CardTitle>
+                          <CardDescription className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-4">
                             <span className="flex items-center gap-1">
                               <Calendar className="h-4 w-4" />
                               {format(new Date(reserva.data), "dd 'de' MMMM, yyyy", { locale: ptBR })}
@@ -197,7 +280,7 @@ export default function Dashboard() {
                             </span>
                           </CardDescription>
                         </div>
-                        <Badge variant={getStatusVariant(reserva.status)} className="flex items-center gap-1">
+                        <Badge variant={getStatusVariant(reserva.status)} className="flex items-center gap-1 w-fit">
                           {getStatusIcon(reserva.status)}
                           {getStatusLabel(reserva.status)}
                         </Badge>
@@ -235,27 +318,39 @@ export default function Dashboard() {
                           </div>
                         )}
 
-                        <div className="flex flex-wrap gap-2 pt-2">
-                          {reserva.status === "approved" && (
+                        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 pt-2">
+                          {reserva.status === "approved" && !reserva.check_in_at && (
                             <>
-                              <Button variant="default" size="sm" onClick={() => handleCheckIn(reserva.id)}>
-                                <QrCode className="h-4 w-4 mr-1" />
-                                Fazer Check-in
+                              <Button 
+                                variant="default" 
+                                size="sm" 
+                                onClick={() => handleCheckIn(reserva.id)}
+                                disabled={!canCheckIn(reserva)}
+                                className="w-full sm:w-auto"
+                              >
+                                <CheckCircle2 className="h-4 w-4 mr-1" />
+                                {canCheckIn(reserva) ? 'Fazer Check-in' : 'Check-in indisponível'}
                               </Button>
-                              <Button variant="outline" size="sm" onClick={() => handleExportarCalendario(reserva)}>
+                              <Button variant="outline" size="sm" onClick={() => handleExportarCalendario(reserva)} className="w-full sm:w-auto">
                                 <Download className="h-4 w-4 mr-1" />
                                 Exportar (.ics)
                               </Button>
                             </>
                           )}
+                          {reserva.status === "approved" && reserva.check_in_at && (
+                            <Badge variant="success" className="w-full sm:w-auto justify-center">
+                              <CheckCircle2 className="h-4 w-4 mr-1" />
+                              Check-in realizado
+                            </Badge>
+                          )}
                           {(reserva.status === "pending" || reserva.status === "approved") && (
-                            <Button variant="destructive" size="sm" onClick={() => handleCancelar(reserva.id)}>
+                            <Button variant="destructive" size="sm" onClick={() => handleCancelar(reserva.id)} className="w-full sm:w-auto">
                               <XCircle className="h-4 w-4 mr-1" />
                               Cancelar
                             </Button>
                           )}
                           {reserva.status === "rejected" && (
-                            <Button variant="outline" size="sm" onClick={() => handleReagendar(reserva)}>
+                            <Button variant="outline" size="sm" onClick={() => handleReagendar(reserva)} className="w-full sm:w-auto">
                               <RefreshCw className="h-4 w-4 mr-1" />
                               Solicitar Novamente
                             </Button>
@@ -271,7 +366,7 @@ export default function Dashboard() {
             <TabsContent value="nova-reserva">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                     <Plus className="h-5 w-5" />
                     Solicitar Nova Reserva
                   </CardTitle>
@@ -280,14 +375,14 @@ export default function Dashboard() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <Button size="lg" onClick={() => setWizardOpen(true)}>
+                  <Button size="lg" onClick={() => setWizardOpen(true)} className="w-full sm:w-auto">
                     <Calendar className="h-5 w-5 mr-2" />
                     Abrir Assistente de Agendamento
                   </Button>
                   
                   <div className="pt-4 border-t">
                     <p className="text-sm text-muted-foreground mb-2">Ou navegue pelo calendário:</p>
-                    <Button variant="outline" asChild>
+                    <Button variant="outline" asChild className="w-full sm:w-auto">
                       <a href="/calendario">
                         Ver Todas as Salas
                       </a>

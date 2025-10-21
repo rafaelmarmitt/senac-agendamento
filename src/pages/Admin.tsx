@@ -148,12 +148,12 @@ export default function Admin() {
       <main className="flex-1 py-12">
         <div className="container mx-auto px-4">
           <div className="mb-8">
-            <h1 className="text-4xl font-bold mb-2">Painel Administrativo</h1>
+            <h1 className="text-3xl sm:text-4xl font-bold mb-2">Painel Administrativo</h1>
             <p className="text-muted-foreground">Controle total do sistema de agendamento</p>
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">Usuários Ativos</CardTitle>
@@ -200,15 +200,15 @@ export default function Admin() {
           </div>
 
           <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-            <TabsList className="mb-6">
-              <TabsTrigger value="usuarios">Usuários</TabsTrigger>
-              <TabsTrigger value="salas">Salas</TabsTrigger>
-              <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
+            <TabsList className="mb-6 w-full sm:w-auto grid grid-cols-3">
+              <TabsTrigger value="usuarios" className="text-xs sm:text-sm">Usuários</TabsTrigger>
+              <TabsTrigger value="salas" className="text-xs sm:text-sm">Salas</TabsTrigger>
+              <TabsTrigger value="relatorios" className="text-xs sm:text-sm">Relatórios</TabsTrigger>
             </TabsList>
 
             <TabsContent value="usuarios" className="space-y-4">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold">Gerenciamento de Usuários</h2>
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
+                <h2 className="text-xl sm:text-2xl font-bold">Gerenciamento de Usuários</h2>
               </div>
 
               {usersLoading && (
@@ -220,12 +220,12 @@ export default function Admin() {
               {!usersLoading && users.map((usuario) => (
                 <Card key={usuario.id}>
                   <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle>{usuario.full_name}</CardTitle>
-                        <CardDescription>{usuario.email}</CardDescription>
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="flex-1">
+                        <CardTitle className="text-lg sm:text-xl">{usuario.full_name}</CardTitle>
+                        <CardDescription className="break-all">{usuario.email}</CardDescription>
                       </div>
-                      <Badge variant={getRoleVariant(usuario)}>
+                      <Badge variant={getRoleVariant(usuario)} className="w-fit">
                         {getUserRole(usuario)}
                       </Badge>
                     </div>
@@ -239,6 +239,7 @@ export default function Admin() {
                         setNewRole(usuario.user_roles?.[0]?.role || 'student');
                         setUserDialogOpen(true);
                       }}
+                      className="w-full sm:w-auto"
                     >
                       <Edit className="h-4 w-4 mr-1" />
                       Alterar Permissão
@@ -249,12 +250,12 @@ export default function Admin() {
             </TabsContent>
 
             <TabsContent value="salas" className="space-y-4">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold">Gerenciamento de Salas</h2>
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
+                <h2 className="text-xl sm:text-2xl font-bold">Gerenciamento de Salas</h2>
                 <Button onClick={() => {
                   resetRoomForm();
                   setRoomDialogOpen(true);
-                }}>
+                }} className="w-full sm:w-auto">
                   <Plus className="h-4 w-4 mr-2" />
                   Nova Sala
                 </Button>
@@ -269,32 +270,32 @@ export default function Admin() {
               {!roomsLoading && rooms.map((sala) => (
                 <Card key={sala.id}>
                   <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle>{sala.nome}</CardTitle>
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="flex-1">
+                        <CardTitle className="text-lg sm:text-xl">{sala.nome}</CardTitle>
                         <CardDescription>
                           {sala.tipo} • Capacidade: {sala.capacidade} pessoas
                         </CardDescription>
                       </div>
-                      <Badge variant={sala.status === "available" ? "success" : sala.status === "maintenance" ? "warning" : "destructive"}>
+                      <Badge variant={sala.status === "available" ? "success" : sala.status === "maintenance" ? "warning" : "destructive"} className="w-fit">
                         {sala.status === "available" ? "Disponível" : sala.status === "maintenance" ? "Manutenção" : "Ocupada"}
                       </Badge>
                     </div>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground break-words">
                         <strong>Local:</strong> {sala.localizacao}
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground break-words">
                         <strong>Recursos:</strong> {sala.recursos.join(', ')}
                       </p>
-                      <div className="flex gap-2 pt-2">
-                        <Button variant="outline" size="sm" onClick={() => handleEditRoom(sala)}>
+                      <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                        <Button variant="outline" size="sm" onClick={() => handleEditRoom(sala)} className="w-full sm:w-auto">
                           <Edit className="h-4 w-4 mr-1" />
                           Editar
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleDeleteRoom(sala.id)}>
+                        <Button variant="outline" size="sm" onClick={() => handleDeleteRoom(sala.id)} className="w-full sm:w-auto">
                           <Trash2 className="h-4 w-4 mr-1" />
                           Remover
                         </Button>

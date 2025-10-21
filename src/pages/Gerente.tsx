@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Clock, User, Users, AlertCircle, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Calendar, Clock, User, Users, AlertCircle, CheckCircle2, XCircle, Loader2, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -87,17 +87,55 @@ export default function Gerente() {
     setJustificativa("");
   };
 
+  const handleDownloadRelatorio = () => {
+    const csvContent = [
+      ['Data', 'Horário', 'Sala', 'Usuário', 'Participantes', 'Motivo', 'Status'].join(','),
+      ...bookings.map(b => [
+        format(new Date(b.data), 'dd/MM/yyyy'),
+        `${b.hora_inicio}-${b.hora_fim}`,
+        b.rooms?.nome || '',
+        b.profiles?.full_name || b.profiles?.email || '',
+        b.participantes,
+        b.motivo.replace(/,/g, ';'),
+        b.status === 'approved' ? 'Aprovada' : 
+        b.status === 'pending' ? 'Pendente' : 
+        b.status === 'rejected' ? 'Recusada' : 'Cancelada'
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `relatorio-gerente-${format(new Date(), 'dd-MM-yyyy')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Relatório Baixado",
+      description: "Relatório completo de reservas baixado com sucesso!",
+    });
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
 
       <main className="flex-1 py-12">
         <div className="container mx-auto px-4">
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold mb-2">Painel do Gerente</h1>
-            <p className="text-muted-foreground">
-              Gerencie solicitações de agendamento e reservas
-            </p>
+          <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-bold mb-2">Painel do Gerente</h1>
+              <p className="text-muted-foreground">
+                Gerencie solicitações de agendamento e reservas
+              </p>
+            </div>
+            <Button onClick={handleDownloadRelatorio} variant="outline" className="w-full sm:w-auto">
+              <FileText className="h-4 w-4 mr-2" />
+              Baixar Relatório
+            </Button>
           </div>
 
           {/* Stats Cards */}
@@ -137,10 +175,10 @@ export default function Gerente() {
           </div>
 
           <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-            <TabsList className="mb-6">
-              <TabsTrigger value="pendentes">Pendentes</TabsTrigger>
-              <TabsTrigger value="aprovadas">Aprovadas</TabsTrigger>
-              <TabsTrigger value="salas">Gerenciar Salas</TabsTrigger>
+            <TabsList className="mb-6 w-full sm:w-auto grid grid-cols-3 sm:inline-flex">
+              <TabsTrigger value="pendentes" className="text-xs sm:text-sm">Pendentes</TabsTrigger>
+              <TabsTrigger value="aprovadas" className="text-xs sm:text-sm">Aprovadas</TabsTrigger>
+              <TabsTrigger value="salas" className="text-xs sm:text-sm">Gerenciar</TabsTrigger>
             </TabsList>
 
             <TabsContent value="pendentes" className="space-y-4">
@@ -163,29 +201,29 @@ export default function Gerente() {
               {!loading && pendentes.map((solicitacao) => (
                 <Card key={solicitacao.id}>
                   <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-2">
-                        <CardTitle>{solicitacao.rooms?.nome || "Sala"}</CardTitle>
-                        <CardDescription className="flex flex-col gap-2">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="space-y-2 flex-1">
+                        <CardTitle className="text-lg sm:text-xl">{solicitacao.rooms?.nome || "Sala"}</CardTitle>
+                        <CardDescription className="flex flex-col gap-2 text-xs sm:text-sm">
                           <span className="flex items-center gap-1">
-                            <User className="h-4 w-4" />
-                            Solicitado por: {solicitacao.profiles?.full_name || solicitacao.profiles?.email}
+                            <User className="h-4 w-4 shrink-0" />
+                            <span className="truncate">Solicitado por: {solicitacao.profiles?.full_name || solicitacao.profiles?.email}</span>
                           </span>
                           <span className="flex items-center gap-1">
-                            <Calendar className="h-4 w-4" />
+                            <Calendar className="h-4 w-4 shrink-0" />
                             {format(new Date(solicitacao.data), "dd 'de' MMMM, yyyy", { locale: ptBR })}
                           </span>
                           <span className="flex items-center gap-1">
-                            <Clock className="h-4 w-4" />
+                            <Clock className="h-4 w-4 shrink-0" />
                             {solicitacao.hora_inicio} - {solicitacao.hora_fim}
                           </span>
                           <span className="flex items-center gap-1">
-                            <Users className="h-4 w-4" />
+                            <Users className="h-4 w-4 shrink-0" />
                             {solicitacao.participantes} participantes
                           </span>
                         </CardDescription>
                       </div>
-                      <Badge variant="warning">Pendente</Badge>
+                      <Badge variant="warning" className="w-fit">Pendente</Badge>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -207,11 +245,12 @@ export default function Gerente() {
                           </div>
                         </div>
                       )}
-                      <div className="flex gap-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
                         <Button 
                           variant="default" 
                           size="sm"
                           onClick={() => handleAction(solicitacao, "aprovar")}
+                          className="w-full sm:w-auto"
                         >
                           <CheckCircle2 className="h-4 w-4 mr-1" />
                           Aprovar
@@ -220,6 +259,7 @@ export default function Gerente() {
                           variant="destructive" 
                           size="sm"
                           onClick={() => handleAction(solicitacao, "recusar")}
+                          className="w-full sm:w-auto"
                         >
                           <XCircle className="h-4 w-4 mr-1" />
                           Recusar
@@ -241,25 +281,25 @@ export default function Gerente() {
               {!loading && aprovadas.map((reserva) => (
                 <Card key={reserva.id}>
                   <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle>{reserva.rooms?.nome || "Sala"}</CardTitle>
-                        <CardDescription className="flex items-center gap-4 mt-2">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="flex-1">
+                        <CardTitle className="text-lg sm:text-xl">{reserva.rooms?.nome || "Sala"}</CardTitle>
+                        <CardDescription className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-4 mt-2 text-xs sm:text-sm">
                           <span className="flex items-center gap-1">
-                            <User className="h-4 w-4" />
-                            {reserva.profiles?.full_name || reserva.profiles?.email}
+                            <User className="h-4 w-4 shrink-0" />
+                            <span className="truncate">{reserva.profiles?.full_name || reserva.profiles?.email}</span>
                           </span>
                           <span className="flex items-center gap-1">
-                            <Calendar className="h-4 w-4" />
+                            <Calendar className="h-4 w-4 shrink-0" />
                             {format(new Date(reserva.data), "dd/MM/yyyy", { locale: ptBR })}
                           </span>
                           <span className="flex items-center gap-1">
-                            <Clock className="h-4 w-4" />
+                            <Clock className="h-4 w-4 shrink-0" />
                             {reserva.hora_inicio} - {reserva.hora_fim}
                           </span>
                         </CardDescription>
                       </div>
-                      <Badge variant="success">Aprovada</Badge>
+                      <Badge variant="success" className="w-fit">Aprovada</Badge>
                     </div>
                   </CardHeader>
                 </Card>

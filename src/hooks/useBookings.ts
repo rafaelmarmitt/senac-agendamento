@@ -14,6 +14,7 @@ export interface Booking {
   recursos_extras: string[];
   status: 'pending' | 'approved' | 'rejected' | 'cancelled';
   justificativa: string | null;
+  check_in_at: string | null;
   rooms?: {
     nome: string;
     tipo: string;
@@ -77,7 +78,7 @@ export function useBookings(filterUserId?: boolean) {
     }
   }, [user, filterUserId]);
 
-  const createBooking = async (booking: Omit<Booking, 'id' | 'status' | 'justificativa' | 'rooms' | 'profiles'>) => {
+  const createBooking = async (booking: Omit<Booking, 'id' | 'status' | 'justificativa' | 'check_in_at' | 'rooms' | 'profiles'>) => {
     const { error } = await supabase
       .from('bookings')
       .insert([booking]);
@@ -98,12 +99,22 @@ export function useBookings(filterUserId?: boolean) {
     return updateBookingStatus(id, 'cancelled');
   };
 
+  const checkIn = async (id: string) => {
+    const { error } = await supabase
+      .from('bookings')
+      .update({ check_in_at: new Date().toISOString() })
+      .eq('id', id);
+    
+    return { error };
+  };
+
   return { 
     bookings, 
     loading, 
     refetch: fetchBookings,
     createBooking,
     updateBookingStatus,
-    cancelBooking
+    cancelBooking,
+    checkIn
   };
 }

@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       bookings: {
         Row: {
+          check_in_at: string | null
           created_at: string
           data: string
           hora_fim: string
@@ -31,6 +32,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          check_in_at?: string | null
           created_at?: string
           data: string
           hora_fim: string
@@ -46,6 +48,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          check_in_at?: string | null
           created_at?: string
           data?: string
           hora_fim?: string
