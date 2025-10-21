@@ -134,10 +134,9 @@ export default function Calendario() {
                 />
                 <Select value={filterHorario} onValueChange={setFilterHorario}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Horário" />
+                    <SelectValue placeholder="Todos os horários" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos os horários</SelectItem>
                     {horarios.map((horario) => (
                       <SelectItem key={horario} value={horario}>
                         {horario}
