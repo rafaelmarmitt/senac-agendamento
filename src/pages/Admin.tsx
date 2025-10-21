@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,42 +8,137 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Users, DoorOpen, Settings, BarChart3, Plus, Edit, Trash2, Shield } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Users, DoorOpen, Settings, BarChart3, Plus, Edit, Trash2, Shield, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-
-// Mock data
-const usuarios = [
-  { id: 1, nome: "João Silva", email: "joao@senac.br", tipo: "comum", ativo: true },
-  { id: 2, nome: "Maria Santos", email: "maria@senac.br", tipo: "gerente", ativo: true },
-  { id: 3, nome: "Pedro Costa", email: "pedro@senac.br", tipo: "comum", ativo: false },
-];
-
-const salas = [
-  { id: 1, nome: "Lab 201", tipo: "Laboratório", capacidade: 30, recursos: "Computadores, Projetor", status: "disponivel" },
-  { id: 2, nome: "Sala 102", tipo: "Sala de Aula", capacidade: 40, recursos: "Projetor, Quadro branco", status: "disponivel" },
-  { id: 3, nome: "Auditório", tipo: "Auditório", capacidade: 100, recursos: "Som, Projetor, Microfones", status: "manutencao" },
-];
+import { useUsers } from "@/hooks/useUsers";
+import { useRooms } from "@/hooks/useRooms";
+import { useRoomManagement } from "@/hooks/useRoomManagement";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function Admin() {
   const [selectedTab, setSelectedTab] = useState("usuarios");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editMode, setEditMode] = useState(false);
+  const [userDialogOpen, setUserDialogOpen] = useState(false);
+  const [roomDialogOpen, setRoomDialogOpen] = useState(false);
+  const [editingRoom, setEditingRoom] = useState<any>(null);
+  
+  const [roomForm, setRoomForm] = useState({
+    nome: '',
+    tipo: 'sala' as 'sala' | 'laboratorio' | 'auditorio',
+    capacidade: 0,
+    localizacao: '',
+    descricao: '',
+    recursos: [] as string[],
+    status: 'available' as 'available' | 'occupied' | 'maintenance'
+  });
+  
+  const [recursosInput, setRecursosInput] = useState('');
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [newRole, setNewRole] = useState<'student' | 'manager' | 'admin'>('student');
+  
+  const { users, loading: usersLoading, updateUserRole } = useUsers();
+  const { rooms, loading: roomsLoading } = useRooms();
+  const { createRoom, updateRoom, deleteRoom } = useRoomManagement();
 
-  const handleAddUser = () => {
-    toast({
-      title: "Usuário Adicionado",
-      description: "Novo usuário cadastrado com sucesso.",
-    });
-    setDialogOpen(false);
+  const stats = useMemo(() => ({
+    activeUsers: users.length,
+    totalRooms: rooms.length,
+    maintenanceRooms: rooms.filter(r => r.status === 'maintenance').length,
+    managers: users.filter(u => u.user_roles?.some(r => r.role === 'manager')).length
+  }), [users, rooms]);
+
+  const handleUpdateRole = async () => {
+    if (!selectedUser) return;
+    
+    const { error } = await updateUserRole(selectedUser.id, newRole);
+    
+    if (error) {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Permissão Atualizada",
+        description: `Usuário agora é ${newRole === 'admin' ? 'Administrador' : newRole === 'manager' ? 'Gerente' : 'Estudante'}.`,
+      });
+      setUserDialogOpen(false);
+      setSelectedUser(null);
+    }
   };
 
-  const handleAddSala = () => {
-    toast({
-      title: "Sala Adicionada",
-      description: "Nova sala cadastrada com sucesso.",
+  const handleSubmitRoom = async () => {
+    const roomData = {
+      ...roomForm,
+      recursos: recursosInput.split(',').map(r => r.trim()).filter(r => r),
+      imagem: null
+    };
+
+    if (editingRoom) {
+      const { error } = await updateRoom(editingRoom.id, roomData);
+      if (error) {
+        toast({ title: "Erro", description: error.message, variant: "destructive" });
+      } else {
+        toast({ title: "Sala Atualizada", description: "Sala atualizada com sucesso." });
+        resetRoomForm();
+      }
+    } else {
+      const { error } = await createRoom(roomData);
+      if (error) {
+        toast({ title: "Erro", description: error.message, variant: "destructive" });
+      } else {
+        toast({ title: "Sala Criada", description: "Nova sala cadastrada com sucesso." });
+        resetRoomForm();
+      }
+    }
+  };
+
+  const handleDeleteRoom = async (id: string) => {
+    const { error } = await deleteRoom(id);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Sala Removida", description: "Sala removida com sucesso." });
+    }
+  };
+
+  const handleEditRoom = (room: any) => {
+    setEditingRoom(room);
+    setRoomForm({
+      nome: room.nome,
+      tipo: room.tipo,
+      capacidade: room.capacidade,
+      localizacao: room.localizacao,
+      descricao: room.descricao || '',
+      recursos: room.recursos,
+      status: room.status
     });
-    setDialogOpen(false);
+    setRecursosInput(room.recursos.join(', '));
+    setRoomDialogOpen(true);
+  };
+
+  const resetRoomForm = () => {
+    setEditingRoom(null);
+    setRoomForm({
+      nome: '', tipo: 'sala', capacidade: 0, localizacao: '', descricao: '', recursos: [], status: 'available'
+    });
+    setRecursosInput('');
+    setRoomDialogOpen(false);
+  };
+
+  const getUserRole = (user: any) => {
+    const role = user.user_roles?.[0]?.role;
+    if (role === 'admin') return 'Administrador';
+    if (role === 'manager') return 'Gerente';
+    return 'Estudante';
+  };
+
+  const getRoleVariant = (user: any): "default" | "secondary" | "destructive" => {
+    const role = user.user_roles?.[0]?.role;
+    if (role === 'admin') return 'destructive';
+    if (role === 'manager') return 'default';
+    return 'secondary';
   };
 
   return (
@@ -54,9 +149,7 @@ export default function Admin() {
         <div className="container mx-auto px-4">
           <div className="mb-8">
             <h1 className="text-4xl font-bold mb-2">Painel Administrativo</h1>
-            <p className="text-muted-foreground">
-              Controle total do sistema de agendamento
-            </p>
+            <p className="text-muted-foreground">Controle total do sistema de agendamento</p>
           </div>
 
           {/* Stats Cards */}
@@ -67,8 +160,8 @@ export default function Admin() {
                 <Users className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">127</div>
-                <p className="text-xs text-muted-foreground">+12 este mês</p>
+                <div className="text-2xl font-bold">{usersLoading ? "-" : stats.activeUsers}</div>
+                <p className="text-xs text-muted-foreground">Total cadastrados</p>
               </CardContent>
             </Card>
 
@@ -78,8 +171,8 @@ export default function Admin() {
                 <DoorOpen className="h-4 w-4 text-accent" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">24</div>
-                <p className="text-xs text-muted-foreground">3 em manutenção</p>
+                <div className="text-2xl font-bold">{roomsLoading ? "-" : stats.totalRooms}</div>
+                <p className="text-xs text-muted-foreground">{stats.maintenanceRooms} em manutenção</p>
               </CardContent>
             </Card>
 
@@ -100,7 +193,7 @@ export default function Admin() {
                 <Shield className="h-4 w-4 text-warning" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">8</div>
+                <div className="text-2xl font-bold">{usersLoading ? "-" : stats.managers}</div>
                 <p className="text-xs text-muted-foreground">Ativos no sistema</p>
               </CardContent>
             </Card>
@@ -111,85 +204,45 @@ export default function Admin() {
               <TabsTrigger value="usuarios">Usuários</TabsTrigger>
               <TabsTrigger value="salas">Salas</TabsTrigger>
               <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
-              <TabsTrigger value="configuracoes">Configurações</TabsTrigger>
             </TabsList>
 
             <TabsContent value="usuarios" className="space-y-4">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">Gerenciamento de Usuários</h2>
-                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button onClick={() => setEditMode(false)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Novo Usuário
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Adicionar Novo Usuário</DialogTitle>
-                      <DialogDescription>
-                        Preencha os dados do novo usuário
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="nome">Nome Completo</Label>
-                        <Input id="nome" placeholder="João Silva" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">E-mail</Label>
-                        <Input id="email" type="email" placeholder="joao@senac.br" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="tipo">Tipo de Usuário</Label>
-                        <Select>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione o tipo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="comum">Comum</SelectItem>
-                            <SelectItem value="gerente">Gerente</SelectItem>
-                            <SelectItem value="admin">Administrador</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button className="w-full" onClick={handleAddUser}>
-                        Adicionar Usuário
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
               </div>
 
-              {usuarios.map((usuario) => (
+              {usersLoading && (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              )}
+
+              {!usersLoading && users.map((usuario) => (
                 <Card key={usuario.id}>
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div>
-                        <CardTitle>{usuario.nome}</CardTitle>
+                        <CardTitle>{usuario.full_name}</CardTitle>
                         <CardDescription>{usuario.email}</CardDescription>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={usuario.tipo === "gerente" ? "default" : "secondary"}>
-                          {usuario.tipo.charAt(0).toUpperCase() + usuario.tipo.slice(1)}
-                        </Badge>
-                        <Badge variant={usuario.ativo ? "success" : "destructive"}>
-                          {usuario.ativo ? "Ativo" : "Inativo"}
-                        </Badge>
-                      </div>
+                      <Badge variant={getRoleVariant(usuario)}>
+                        {getUserRole(usuario)}
+                      </Badge>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
-                        <Edit className="h-4 w-4 mr-1" />
-                        Editar
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Remover
-                      </Button>
-                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setSelectedUser(usuario);
+                        setNewRole(usuario.user_roles?.[0]?.role || 'student');
+                        setUserDialogOpen(true);
+                      }}
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Alterar Permissão
+                    </Button>
                   </CardContent>
                 </Card>
               ))}
@@ -198,55 +251,22 @@ export default function Admin() {
             <TabsContent value="salas" className="space-y-4">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">Gerenciamento de Salas</h2>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Nova Sala
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Adicionar Nova Sala</DialogTitle>
-                      <DialogDescription>
-                        Cadastre uma nova sala ou espaço
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="nomeSala">Nome da Sala</Label>
-                        <Input id="nomeSala" placeholder="Lab 301" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="tipoSala">Tipo</Label>
-                        <Select>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione o tipo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="sala">Sala de Aula</SelectItem>
-                            <SelectItem value="lab">Laboratório</SelectItem>
-                            <SelectItem value="auditorio">Auditório</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="capacidade">Capacidade</Label>
-                        <Input id="capacidade" type="number" placeholder="30" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="recursos">Recursos Disponíveis</Label>
-                        <Input id="recursos" placeholder="Projetor, Computadores..." />
-                      </div>
-                      <Button className="w-full" onClick={handleAddSala}>
-                        Adicionar Sala
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <Button onClick={() => {
+                  resetRoomForm();
+                  setRoomDialogOpen(true);
+                }}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nova Sala
+                </Button>
               </div>
 
-              {salas.map((sala) => (
+              {roomsLoading && (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              )}
+
+              {!roomsLoading && rooms.map((sala) => (
                 <Card key={sala.id}>
                   <CardHeader>
                     <div className="flex items-start justify-between">
@@ -256,26 +276,25 @@ export default function Admin() {
                           {sala.tipo} • Capacidade: {sala.capacidade} pessoas
                         </CardDescription>
                       </div>
-                      <Badge variant={sala.status === "disponivel" ? "success" : "warning"}>
-                        {sala.status === "disponivel" ? "Disponível" : "Manutenção"}
+                      <Badge variant={sala.status === "available" ? "success" : sala.status === "maintenance" ? "warning" : "destructive"}>
+                        {sala.status === "available" ? "Disponível" : sala.status === "maintenance" ? "Manutenção" : "Ocupada"}
                       </Badge>
                     </div>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
                       <p className="text-sm text-muted-foreground">
-                        <strong>Recursos:</strong> {sala.recursos}
+                        <strong>Local:</strong> {sala.localizacao}
                       </p>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Recursos:</strong> {sala.recursos.join(', ')}
+                      </p>
+                      <div className="flex gap-2 pt-2">
+                        <Button variant="outline" size="sm" onClick={() => handleEditRoom(sala)}>
                           <Edit className="h-4 w-4 mr-1" />
                           Editar
                         </Button>
-                        <Button variant="outline" size="sm">
-                          <Settings className="h-4 w-4 mr-1" />
-                          Status
-                        </Button>
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={() => handleDeleteRoom(sala.id)}>
                           <Trash2 className="h-4 w-4 mr-1" />
                           Remover
                         </Button>
@@ -312,36 +331,99 @@ export default function Admin() {
                 </CardContent>
               </Card>
             </TabsContent>
-
-            <TabsContent value="configuracoes">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Configurações do Sistema</CardTitle>
-                  <CardDescription>
-                    Ajuste parâmetros gerais da plataforma
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Horário de Funcionamento</Label>
-                      <div className="flex gap-2">
-                        <Input type="time" defaultValue="08:00" />
-                        <Input type="time" defaultValue="22:00" />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Tempo Máximo de Reserva (horas)</Label>
-                      <Input type="number" defaultValue="4" />
-                    </div>
-                    <Button>Salvar Configurações</Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
           </Tabs>
         </div>
       </main>
+
+      {/* User Role Dialog */}
+      <Dialog open={userDialogOpen} onOpenChange={setUserDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Alterar Permissão de Usuário</DialogTitle>
+            <DialogDescription>
+              Defina a nova permissão para {selectedUser?.full_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nova Permissão</Label>
+              <Select value={newRole} onValueChange={(v) => setNewRole(v as any)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="student">Estudante</SelectItem>
+                  <SelectItem value="manager">Gerente</SelectItem>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUserDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleUpdateRole}>Atualizar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Room Dialog */}
+      <Dialog open={roomDialogOpen} onOpenChange={setRoomDialogOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingRoom ? 'Editar Sala' : 'Nova Sala'}</DialogTitle>
+            <DialogDescription>
+              Preencha os dados da sala
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nome da Sala</Label>
+              <Input value={roomForm.nome} onChange={(e) => setRoomForm({...roomForm, nome: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo</Label>
+              <Select value={roomForm.tipo} onValueChange={(v: any) => setRoomForm({...roomForm, tipo: v})}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sala">Sala de Aula</SelectItem>
+                  <SelectItem value="laboratorio">Laboratório</SelectItem>
+                  <SelectItem value="auditorio">Auditório</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Capacidade</Label>
+              <Input type="number" value={roomForm.capacidade} onChange={(e) => setRoomForm({...roomForm, capacidade: parseInt(e.target.value)})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Localização</Label>
+              <Input value={roomForm.localizacao} onChange={(e) => setRoomForm({...roomForm, localizacao: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Textarea value={roomForm.descricao} onChange={(e) => setRoomForm({...roomForm, descricao: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Recursos (separados por vírgula)</Label>
+              <Input value={recursosInput} onChange={(e) => setRecursosInput(e.target.value)} placeholder="Projetor, Quadro, Ar-condicionado" />
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={roomForm.status} onValueChange={(v: any) => setRoomForm({...roomForm, status: v})}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="available">Disponível</SelectItem>
+                  <SelectItem value="maintenance">Manutenção</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => resetRoomForm()}>Cancelar</Button>
+            <Button onClick={handleSubmitRoom}>{editingRoom ? 'Atualizar' : 'Criar'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Footer />
     </div>

@@ -1,24 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, MapPin, Users, Filter, Search, Zap } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, Filter, Search, Zap, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import WizardAgendamento from "@/components/WizardAgendamento";
 import SalaDetalhesModal from "@/components/SalaDetalhesModal";
-
-// Mock data - será substituído por dados reais do backend
-const mockSalas = [
-  { id: 1, nome: "Sala 101", tipo: "Laboratório de Informática", capacidade: 30, status: "disponivel", horario: "08:00 - 10:00" },
-  { id: 2, nome: "Sala 102", tipo: "Sala de Aula", capacidade: 40, status: "ocupada", horario: "08:00 - 10:00" },
-  { id: 3, nome: "Lab 201", tipo: "Laboratório de Informática", capacidade: 25, status: "disponivel", horario: "08:00 - 10:00" },
-  { id: 4, nome: "Sala 203", tipo: "Sala de Aula", capacidade: 35, status: "manutencao", horario: "08:00 - 10:00" },
-  { id: 5, nome: "Auditório", tipo: "Auditório", capacidade: 100, status: "disponivel", horario: "08:00 - 10:00" },
-  { id: 6, nome: "Lab 301", tipo: "Laboratório de Informática", capacidade: 20, status: "ocupada", horario: "08:00 - 10:00" },
-];
+import { useRooms } from "@/hooks/useRooms";
+import { useAuth } from "@/contexts/AuthContext";
 
 const horarios = [
   "08:00 - 10:00",
@@ -38,22 +31,34 @@ export default function Calendario() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [detalhesOpen, setDetalhesOpen] = useState(false);
   const [salaSelecionada, setSalaSelecionada] = useState<any>(null);
+  const { rooms, loading } = useRooms();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "disponivel": return "success";
-      case "ocupada": return "destructive";
-      case "manutencao": return "warning";
+      case "available": return "success";
+      case "occupied": return "destructive";
+      case "maintenance": return "warning";
       default: return "secondary";
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case "disponivel": return "Disponível";
-      case "ocupada": return "Ocupada";
-      case "manutencao": return "Manutenção";
+      case "available": return "Disponível";
+      case "occupied": return "Ocupada";
+      case "maintenance": return "Manutenção";
       default: return status;
+    }
+  };
+
+  const getTipoLabel = (tipo: string) => {
+    switch (tipo) {
+      case "sala": return "Sala de Aula";
+      case "laboratorio": return "Laboratório de Informática";
+      case "auditorio": return "Auditório";
+      default: return tipo;
     }
   };
 
@@ -62,17 +67,21 @@ export default function Calendario() {
     setDetalhesOpen(true);
   };
 
-  const salasFiltradasFiltradas = mockSalas.filter((sala) => {
+  const handleAgendar = () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    setWizardOpen(true);
+  };
+
+  const salasFiltradasFiltradas = rooms.filter((sala) => {
     const matchSearch = sala.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       sala.tipo.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchTipo = filterTipo === "todos" || 
-                     (filterTipo === "sala" && sala.tipo.includes("Sala de Aula")) ||
-                     (filterTipo === "laboratorio" && sala.tipo.includes("Laboratório")) ||
-                     (filterTipo === "auditorio" && sala.tipo.includes("Auditório"));
+                       getTipoLabel(sala.tipo).toLowerCase().includes(searchTerm.toLowerCase());
+    const matchTipo = filterTipo === "todos" || sala.tipo === filterTipo;
     const matchCapacidade = !filterCapacidade || sala.capacidade >= parseInt(filterCapacidade);
-    const matchHorario = !filterHorario || sala.horario === filterHorario;
     
-    return matchSearch && matchTipo && matchCapacidade && matchHorario;
+    return matchSearch && matchTipo && matchCapacidade;
   });
 
   return (
@@ -89,7 +98,7 @@ export default function Calendario() {
                 Visualize a disponibilidade das salas em tempo real
               </p>
             </div>
-            <Button size="lg" onClick={() => setWizardOpen(true)} className="flex items-center gap-2">
+            <Button size="lg" onClick={handleAgendar} className="flex items-center gap-2">
               <Zap className="h-5 w-5" />
               Agendamento Rápido
             </Button>
@@ -175,73 +184,81 @@ export default function Calendario() {
           </div>
 
           {/* Salas Grid */}
-          <div className="mb-4">
-            <p className="text-sm text-muted-foreground">
-              Mostrando {salasFiltradasFiltradas.length} de {mockSalas.length} salas
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {salasFiltradasFiltradas.map((sala) => (
-              <Card key={sala.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-xl">{sala.nome}</CardTitle>
-                      <CardDescription>{sala.tipo}</CardDescription>
-                    </div>
-                    <Badge variant={getStatusColor(sala.status)}>
-                      {getStatusText(sala.status)}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Users className="h-4 w-4" />
-                      <span>Capacidade: {sala.capacidade} pessoas</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Clock className="h-4 w-4" />
-                      <span>{sala.horario}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <MapPin className="h-4 w-4" />
-                      <span>Bloco A - 1º Andar</span>
-                    </div>
-                  </div>
+          {loading && (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          )}
+          
+          {!loading && (
+            <>
+              <div className="mb-4">
+                <p className="text-sm text-muted-foreground">
+                  Mostrando {salasFiltradasFiltradas.length} de {rooms.length} salas
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {salasFiltradasFiltradas.map((sala) => (
+                  <Card key={sala.id} className="hover:shadow-lg transition-shadow">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-xl">{sala.nome}</CardTitle>
+                          <CardDescription>{getTipoLabel(sala.tipo)}</CardDescription>
+                        </div>
+                        <Badge variant={getStatusColor(sala.status)}>
+                          {getStatusText(sala.status)}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Users className="h-4 w-4" />
+                          <span>Capacidade: {sala.capacidade} pessoas</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <MapPin className="h-4 w-4" />
+                          <span>{sala.localizacao}</span>
+                        </div>
+                      </div>
 
-                  {sala.status === "disponivel" && (
-                    <Button className="w-full" variant="default" onClick={() => setWizardOpen(true)}>
-                      <Calendar className="h-4 w-4" />
-                      Agendar Sala
-                    </Button>
-                  )}
-                  {sala.status === "ocupada" && (
-                    <Button className="w-full" variant="outline" onClick={() => handleVerDetalhes(sala)}>
-                      Ver Detalhes
-                    </Button>
-                  )}
-                  {sala.status === "manutencao" && (
-                    <Button className="w-full" variant="outline" disabled>
-                      Em Manutenção
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                      {sala.status === "available" && (
+                        <Button className="w-full" variant="default" onClick={handleAgendar}>
+                          <Calendar className="h-4 w-4" />
+                          Agendar Sala
+                        </Button>
+                      )}
+                      {sala.status === "occupied" && (
+                        <Button className="w-full" variant="outline" onClick={() => handleVerDetalhes(sala)}>
+                          Ver Detalhes
+                        </Button>
+                      )}
+                      {sala.status === "maintenance" && (
+                        <Button className="w-full" variant="outline" disabled>
+                          Em Manutenção
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
 
           {/* Info Card */}
-          <Card className="mt-12 border-primary/20 bg-primary/5">
-            <CardHeader>
-              <CardTitle>Atenção Visitantes</CardTitle>
-              <CardDescription>
-                Esta é a visualização pública do calendário. Para solicitar agendamentos e ver mais detalhes, 
-                você precisa <a href="/login" className="text-primary hover:underline font-medium">fazer login</a> ou{" "}
-                <a href="/registro" className="text-primary hover:underline font-medium">criar uma conta</a>.
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          {!user && (
+            <Card className="mt-12 border-primary/20 bg-primary/5">
+              <CardHeader>
+                <CardTitle>Atenção Visitantes</CardTitle>
+                <CardDescription>
+                  Esta é a visualização pública do calendário. Para solicitar agendamentos e ver mais detalhes, 
+                  você precisa <a href="/login" className="text-primary hover:underline font-medium">fazer login</a> ou{" "}
+                  <a href="/registro" className="text-primary hover:underline font-medium">criar uma conta</a>.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
         </div>
       </main>
 
