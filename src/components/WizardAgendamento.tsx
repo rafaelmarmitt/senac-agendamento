@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar as CalendarIcon, Users, MapPin, Laptop, CheckCircle2, ArrowRight, ArrowLeft } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useRooms } from "@/hooks/useRooms";
+import { useBookings } from "@/hooks/useBookings";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface WizardAgendamentoProps {
   open: boolean;
@@ -18,13 +21,6 @@ interface WizardAgendamentoProps {
 }
 
 type Step = 1 | 2 | 3 | 4;
-
-const mockSalas = [
-  { id: 1, nome: "Lab 201", tipo: "Laboratório", capacidade: 30, recursos: ["Computadores", "Projetor", "Ar-condicionado"] },
-  { id: 2, nome: "Sala 102", tipo: "Sala de Aula", capacidade: 40, recursos: ["Projetor", "Quadro", "Ar-condicionado"] },
-  { id: 3, nome: "Auditório", tipo: "Auditório", capacidade: 100, recursos: ["Som", "Projetor", "Microfones", "Ar-condicionado"] },
-  { id: 4, nome: "Lab 305", tipo: "Laboratório", capacidade: 25, recursos: ["Computadores", "Software Específico", "Projetor"] },
-];
 
 const recursosDisponiveis = [
   "Microfone sem fio",
@@ -42,11 +38,16 @@ export default function WizardAgendamento({ open, onOpenChange }: WizardAgendame
   const [horarioFim, setHorarioFim] = useState("");
   const [capacidade, setCapacidade] = useState("");
   const [tipoSala, setTipoSala] = useState("");
-  const [salaSelecionada, setSalaSelecionada] = useState<number | null>(null);
+  const [salaSelecionada, setSalaSelecionada] = useState<string | null>(null);
   const [motivo, setMotivo] = useState("");
   const [recursosExtras, setRecursosExtras] = useState<string[]>([]);
   const [recorrente, setRecorrente] = useState(false);
   const [recorrenciaTipo, setRecorrenciaTipo] = useState("");
+  const [loading, setLoading] = useState(false);
+  
+  const { rooms } = useRooms();
+  const { createBooking } = useBookings();
+  const { user } = useAuth();
 
   const handleClose = () => {
     setStep(1);
@@ -71,18 +72,51 @@ export default function WizardAgendamento({ open, onOpenChange }: WizardAgendame
     if (step > 1) setStep((step - 1) as Step);
   };
 
-  const handleSubmit = () => {
-    toast({
-      title: "Solicitação Enviada!",
-      description: "Sua solicitação de agendamento foi enviada para aprovação. Você será notificado em breve.",
+  const handleSubmit = async () => {
+    if (!user || !salaSelecionada || !selectedDate) return;
+    
+    setLoading(true);
+    const { error } = await createBooking({
+      room_id: salaSelecionada,
+      user_id: user.id,
+      data: selectedDate.toISOString().split('T')[0],
+      hora_inicio: horarioInicio,
+      hora_fim: horarioFim,
+      participantes: parseInt(capacidade),
+      motivo,
+      recursos_extras: recursosExtras,
     });
-    handleClose();
+
+    if (error) {
+      toast({
+        title: "Erro ao criar reserva",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Solicitação Enviada!",
+        description: "Sua solicitação de agendamento foi enviada para aprovação. Você será notificado em breve.",
+      });
+      handleClose();
+    }
+    setLoading(false);
   };
 
-  const salasDisponiveis = mockSalas.filter((sala) => {
+  const getTipoLabel = (tipo: string) => {
+    switch (tipo) {
+      case "sala": return "Sala de Aula";
+      case "laboratorio": return "Laboratório";
+      case "auditorio": return "Auditório";
+      default: return tipo;
+    }
+  };
+
+  const salasDisponiveis = rooms.filter((sala) => {
     const matchCapacidade = !capacidade || sala.capacidade >= parseInt(capacidade);
     const matchTipo = !tipoSala || sala.tipo === tipoSala;
-    return matchCapacidade && matchTipo;
+    const matchStatus = sala.status === 'available';
+    return matchCapacidade && matchTipo && matchStatus;
   });
 
   const toggleRecurso = (recurso: string) => {
@@ -211,9 +245,9 @@ export default function WizardAgendamento({ open, onOpenChange }: WizardAgendame
                     <SelectValue placeholder="Selecione o tipo de sala" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Sala de Aula">Sala de Aula</SelectItem>
-                    <SelectItem value="Laboratório">Laboratório</SelectItem>
-                    <SelectItem value="Auditório">Auditório</SelectItem>
+                    <SelectItem value="sala">Sala de Aula</SelectItem>
+                    <SelectItem value="laboratorio">Laboratório</SelectItem>
+                    <SelectItem value="auditorio">Auditório</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -249,18 +283,27 @@ export default function WizardAgendamento({ open, onOpenChange }: WizardAgendame
                           <div className="space-y-2">
                             <div className="flex items-center gap-2">
                               <h4 className="font-semibold">{sala.nome}</h4>
-                              <Badge variant="secondary">{sala.tipo}</Badge>
+                              <Badge variant="secondary">{getTipoLabel(sala.tipo)}</Badge>
                             </div>
                             <p className="text-sm text-muted-foreground flex items-center gap-1">
                               <Users className="h-4 w-4" />
                               Capacidade: {sala.capacidade} pessoas
                             </p>
+                            <p className="text-sm text-muted-foreground flex items-center gap-1">
+                              <MapPin className="h-4 w-4" />
+                              {sala.localizacao}
+                            </p>
                             <div className="flex flex-wrap gap-1">
-                              {sala.recursos.map((recurso) => (
+                              {sala.recursos.slice(0, 3).map((recurso) => (
                                 <Badge key={recurso} variant="outline" className="text-xs">
                                   {recurso}
                                 </Badge>
                               ))}
+                              {sala.recursos.length > 3 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{sala.recursos.length - 3}
+                                </Badge>
+                              )}
                             </div>
                           </div>
                           {salaSelecionada === sala.id && (
@@ -328,7 +371,7 @@ export default function WizardAgendamento({ open, onOpenChange }: WizardAgendame
                   )}
                   <p>
                     <strong>Sala:</strong>{" "}
-                    {mockSalas.find((s) => s.id === salaSelecionada)?.nome || "Não selecionada"}
+                    {rooms.find((s) => s.id === salaSelecionada)?.nome || "Não selecionada"}
                   </p>
                   <p>
                     <strong>Participantes:</strong> {capacidade || "Não informado"}
@@ -362,8 +405,8 @@ export default function WizardAgendamento({ open, onOpenChange }: WizardAgendame
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             ) : (
-              <Button onClick={handleSubmit} disabled={!motivo}>
-                Enviar Solicitação
+              <Button onClick={handleSubmit} disabled={!motivo || loading}>
+                {loading ? "Enviando..." : "Enviar Solicitação"}
               </Button>
             )}
           </div>

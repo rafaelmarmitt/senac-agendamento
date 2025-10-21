@@ -1,70 +1,61 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Clock, CheckCircle2, XCircle, AlertCircle, Plus, RefreshCw, QrCode, Download } from "lucide-react";
+import { Calendar, Clock, CheckCircle2, XCircle, AlertCircle, Plus, RefreshCw, QrCode, Download, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import WizardAgendamento from "@/components/WizardAgendamento";
-
-// Mock data
-const minhasReservas = [
-  { 
-    id: 1, 
-    sala: "Lab 201", 
-    data: "2025-10-20", 
-    horario: "14:00 - 16:00", 
-    status: "aprovada",
-    checkInRealizado: false,
-    motivo: "Aula prática de programação",
-    recursos: ["Computadores", "Projetor"],
-    recorrente: false
-  },
-  { 
-    id: 2, 
-    sala: "Sala 102", 
-    data: "2025-10-22", 
-    horario: "10:00 - 12:00", 
-    status: "pendente",
-    checkInRealizado: false,
-    motivo: "Workshop de Design",
-    recursos: ["Projetor", "Quadro"],
-    recorrente: true,
-    recorrenciaTipo: "semanal"
-  },
-  { 
-    id: 3, 
-    sala: "Auditório", 
-    data: "2025-10-18", 
-    horario: "19:00 - 21:00", 
-    status: "recusada",
-    checkInRealizado: false,
-    motivo: "Palestra sobre IA",
-    recursos: ["Som", "Microfones"],
-    recorrente: false,
-    motivoRecusa: "Conflito com outro evento institucional"
-  },
-];
+import { useBookings } from "@/hooks/useBookings";
+import { useAuth } from "@/contexts/AuthContext";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export default function Dashboard() {
   const [selectedTab, setSelectedTab] = useState("minhas-reservas");
   const [wizardOpen, setWizardOpen] = useState(false);
+  const { bookings, loading, cancelBooking } = useBookings(true);
+  const { user } = useAuth();
 
-  const handleCheckIn = (reservaId: number) => {
+  const stats = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    return {
+      active: bookings.filter(b => b.status === 'approved' && new Date(b.data) >= now).length,
+      pending: bookings.filter(b => b.status === 'pending').length,
+      thisMonth: bookings.filter(b => {
+        const bookingDate = new Date(b.data);
+        return bookingDate.getMonth() === currentMonth && bookingDate.getFullYear() === currentYear;
+      }).length
+    };
+  }, [bookings]);
+
+  const handleCheckIn = (reservaId: string) => {
     toast({
       title: "Check-in Realizado!",
       description: "Sua reserva foi confirmada. A sala está liberada para uso.",
     });
   };
 
-  const handleCancelar = (reservaId: number) => {
-    toast({
-      title: "Reserva Cancelada",
-      description: "Sua reserva foi cancelada com sucesso.",
-      variant: "destructive",
-    });
+  const handleCancelar = async (reservaId: string) => {
+    const { error } = await cancelBooking(reservaId);
+    
+    if (error) {
+      toast({
+        title: "Erro ao cancelar",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Reserva Cancelada",
+        description: "Sua reserva foi cancelada com sucesso.",
+      });
+    }
   };
 
   const handleReagendar = (reserva: any) => {
@@ -84,19 +75,31 @@ export default function Dashboard() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "aprovada": return <CheckCircle2 className="h-4 w-4" />;
-      case "pendente": return <AlertCircle className="h-4 w-4" />;
-      case "recusada": return <XCircle className="h-4 w-4" />;
+      case "approved": return <CheckCircle2 className="h-4 w-4" />;
+      case "pending": return <AlertCircle className="h-4 w-4" />;
+      case "rejected": return <XCircle className="h-4 w-4" />;
+      case "cancelled": return <XCircle className="h-4 w-4" />;
       default: return null;
     }
   };
 
   const getStatusVariant = (status: string) => {
     switch (status) {
-      case "aprovada": return "success";
-      case "pendente": return "warning";
-      case "recusada": return "destructive";
+      case "approved": return "success";
+      case "pending": return "warning";
+      case "rejected": return "destructive";
+      case "cancelled": return "secondary";
       default: return "secondary";
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "approved": return "Aprovada";
+      case "pending": return "Pendente";
+      case "rejected": return "Recusada";
+      case "cancelled": return "Cancelada";
+      default: return status;
     }
   };
 
@@ -122,7 +125,7 @@ export default function Dashboard() {
                 <CheckCircle2 className="h-4 w-4 text-success" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">1</div>
+                <div className="text-2xl font-bold">{loading ? "-" : stats.active}</div>
                 <p className="text-xs text-muted-foreground">Aprovadas e confirmadas</p>
               </CardContent>
             </Card>
@@ -133,7 +136,7 @@ export default function Dashboard() {
                 <AlertCircle className="h-4 w-4 text-warning" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">1</div>
+                <div className="text-2xl font-bold">{loading ? "-" : stats.pending}</div>
                 <p className="text-xs text-muted-foreground">Aguardando aprovação</p>
               </CardContent>
             </Card>
@@ -144,7 +147,7 @@ export default function Dashboard() {
                 <Calendar className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">3</div>
+                <div className="text-2xl font-bold">{loading ? "-" : stats.thisMonth}</div>
                 <p className="text-xs text-muted-foreground">Total de solicitações</p>
               </CardContent>
             </Card>
@@ -158,7 +161,13 @@ export default function Dashboard() {
             </TabsList>
 
             <TabsContent value="minhas-reservas" className="space-y-4">
-              {minhasReservas.length === 0 ? (
+              {loading && (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              )}
+              
+              {!loading && bookings.length === 0 ? (
                 <Card>
                   <CardContent className="py-12 text-center">
                     <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -170,33 +179,27 @@ export default function Dashboard() {
                     </Button>
                   </CardContent>
                 </Card>
-              ) : (
-                minhasReservas.map((reserva) => (
-                  <Card key={reserva.id} className={reserva.status === "recusada" ? "opacity-70" : ""}>
+              ) : !loading && (
+                bookings.map((reserva) => (
+                  <Card key={reserva.id} className={reserva.status === "rejected" ? "opacity-70" : ""}>
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div className="space-y-2">
-                          <CardTitle>{reserva.sala}</CardTitle>
+                          <CardTitle>{reserva.rooms?.nome || "Sala"}</CardTitle>
                           <CardDescription className="flex flex-wrap items-center gap-4">
                             <span className="flex items-center gap-1">
                               <Calendar className="h-4 w-4" />
-                              {new Date(reserva.data).toLocaleDateString('pt-BR')}
+                              {format(new Date(reserva.data), "dd 'de' MMMM, yyyy", { locale: ptBR })}
                             </span>
                             <span className="flex items-center gap-1">
                               <Clock className="h-4 w-4" />
-                              {reserva.horario}
+                              {reserva.hora_inicio} - {reserva.hora_fim}
                             </span>
-                            {reserva.recorrente && (
-                              <Badge variant="outline" className="text-xs">
-                                <RefreshCw className="h-3 w-3 mr-1" />
-                                {reserva.recorrenciaTipo}
-                              </Badge>
-                            )}
                           </CardDescription>
                         </div>
                         <Badge variant={getStatusVariant(reserva.status)} className="flex items-center gap-1">
                           {getStatusIcon(reserva.status)}
-                          {reserva.status.charAt(0).toUpperCase() + reserva.status.slice(1)}
+                          {getStatusLabel(reserva.status)}
                         </Badge>
                       </div>
                     </CardHeader>
@@ -207,11 +210,16 @@ export default function Dashboard() {
                           <p className="text-muted-foreground">{reserva.motivo}</p>
                         </div>
                         
-                        {reserva.recursos && reserva.recursos.length > 0 && (
+                        <div className="text-sm">
+                          <p className="font-medium mb-1">Participantes:</p>
+                          <p className="text-muted-foreground">{reserva.participantes} pessoas</p>
+                        </div>
+                        
+                        {reserva.recursos_extras && reserva.recursos_extras.length > 0 && (
                           <div className="text-sm">
-                            <p className="font-medium mb-1">Recursos:</p>
+                            <p className="font-medium mb-1">Recursos Extras:</p>
                             <div className="flex flex-wrap gap-1">
-                              {reserva.recursos.map((recurso) => (
+                              {reserva.recursos_extras.map((recurso) => (
                                 <Badge key={recurso} variant="secondary" className="text-xs">
                                   {recurso}
                                 </Badge>
@@ -220,39 +228,33 @@ export default function Dashboard() {
                           </div>
                         )}
 
-                        {reserva.status === "recusada" && reserva.motivoRecusa && (
+                        {reserva.status === "rejected" && reserva.justificativa && (
                           <div className="text-sm p-3 bg-destructive/10 rounded-lg border border-destructive/20">
                             <p className="font-medium text-destructive mb-1">Motivo da recusa:</p>
-                            <p className="text-muted-foreground">{reserva.motivoRecusa}</p>
+                            <p className="text-muted-foreground">{reserva.justificativa}</p>
                           </div>
                         )}
 
                         <div className="flex flex-wrap gap-2 pt-2">
-                          {reserva.status === "aprovada" && !reserva.checkInRealizado && (
-                            <Button variant="default" size="sm" onClick={() => handleCheckIn(reserva.id)}>
-                              <QrCode className="h-4 w-4 mr-1" />
-                              Fazer Check-in
-                            </Button>
+                          {reserva.status === "approved" && (
+                            <>
+                              <Button variant="default" size="sm" onClick={() => handleCheckIn(reserva.id)}>
+                                <QrCode className="h-4 w-4 mr-1" />
+                                Fazer Check-in
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => handleExportarCalendario(reserva)}>
+                                <Download className="h-4 w-4 mr-1" />
+                                Exportar (.ics)
+                              </Button>
+                            </>
                           )}
-                          {reserva.status === "aprovada" && reserva.checkInRealizado && (
-                            <Badge variant="success" className="flex items-center gap-1">
-                              <CheckCircle2 className="h-3 w-3" />
-                              Check-in realizado
-                            </Badge>
-                          )}
-                          {reserva.status === "aprovada" && (
-                            <Button variant="outline" size="sm" onClick={() => handleExportarCalendario(reserva)}>
-                              <Download className="h-4 w-4 mr-1" />
-                              Exportar (.ics)
-                            </Button>
-                          )}
-                          {(reserva.status === "pendente" || reserva.status === "aprovada") && (
+                          {(reserva.status === "pending" || reserva.status === "approved") && (
                             <Button variant="destructive" size="sm" onClick={() => handleCancelar(reserva.id)}>
                               <XCircle className="h-4 w-4 mr-1" />
                               Cancelar
                             </Button>
                           )}
-                          {reserva.status === "recusada" && (
+                          {reserva.status === "rejected" && (
                             <Button variant="outline" size="sm" onClick={() => handleReagendar(reserva)}>
                               <RefreshCw className="h-4 w-4 mr-1" />
                               Solicitar Novamente
