@@ -31,6 +31,9 @@ export default function SalaDetalhesModal({
   sala,
   onAgendar 
 }: SalaDetalhesModalProps) {
+  // Early return se sala não existir
+  if (!sala) return null;
+
   const getStatusVariant = (status: string) => {
     switch (status) {
       case "disponivel": return "success";
@@ -56,8 +59,6 @@ export default function SalaDetalhesModal({
     });
     onOpenChange(false);
   };
-
-  if (!sala) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
