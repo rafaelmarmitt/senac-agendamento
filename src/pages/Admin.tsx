@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Users, DoorOpen, Settings, BarChart3, Plus, Edit, Trash2, Shield, Loader2 } from "lucide-react";
+import { Users, DoorOpen, Settings, BarChart3, Plus, Edit, Trash2, Shield, Loader2, Upload, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useUsers } from "@/hooks/useUsers";
 import { useRooms } from "@/hooks/useRooms";
@@ -29,16 +29,21 @@ export default function Admin() {
     localizacao: '',
     descricao: '',
     recursos: [] as string[],
-    status: 'available' as 'available' | 'occupied' | 'maintenance'
+    status: 'available' as 'available' | 'occupied' | 'maintenance',
+    imagem: null as string | null
   });
   
   const [recursosInput, setRecursosInput] = useState('');
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [newRole, setNewRole] = useState<'student' | 'manager' | 'admin'>('student');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { users, loading: usersLoading, updateUserRole } = useUsers();
   const { rooms, loading: roomsLoading } = useRooms();
-  const { createRoom, updateRoom, deleteRoom } = useRoomManagement();
+  const { createRoom, updateRoom, deleteRoom, uploadImage } = useRoomManagement();
 
   const stats = useMemo(() => ({
     activeUsers: users.length,
@@ -68,11 +73,46 @@ export default function Admin() {
     }
   };
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSubmitRoom = async () => {
+    setUploading(true);
+    
+    let imageUrl = roomForm.imagem;
+
+    // Upload new image if selected
+    if (imageFile) {
+      const { url, error: uploadError } = await uploadImage(imageFile);
+      if (uploadError) {
+        toast({ title: "Erro no Upload", description: uploadError.message, variant: "destructive" });
+        setUploading(false);
+        return;
+      }
+      imageUrl = url;
+    }
+
     const roomData = {
       ...roomForm,
       recursos: recursosInput.split(',').map(r => r.trim()).filter(r => r),
-      imagem: null
+      imagem: imageUrl
     };
 
     if (editingRoom) {
@@ -92,6 +132,8 @@ export default function Admin() {
         resetRoomForm();
       }
     }
+    
+    setUploading(false);
   };
 
   const handleDeleteRoom = async (id: string) => {
@@ -112,19 +154,26 @@ export default function Admin() {
       localizacao: room.localizacao,
       descricao: room.descricao || '',
       recursos: room.recursos,
-      status: room.status
+      status: room.status,
+      imagem: room.imagem
     });
     setRecursosInput(room.recursos.join(', '));
+    setImagePreview(room.imagem);
     setRoomDialogOpen(true);
   };
 
   const resetRoomForm = () => {
     setEditingRoom(null);
     setRoomForm({
-      nome: '', tipo: 'sala', capacidade: 0, localizacao: '', descricao: '', recursos: [], status: 'available'
+      nome: '', tipo: 'sala', capacidade: 0, localizacao: '', descricao: '', recursos: [], status: 'available', imagem: null
     });
     setRecursosInput('');
+    setImageFile(null);
+    setImagePreview(null);
     setRoomDialogOpen(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const getUserRole = (user: any) => {
@@ -418,10 +467,50 @@ export default function Admin() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>Imagem da Sala</Label>
+              <div className="flex flex-col gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                  id="room-image-upload"
+                />
+                {imagePreview ? (
+                  <div className="relative w-full h-48 rounded-md overflow-hidden border">
+                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      className="absolute top-2 right-2"
+                      onClick={handleRemoveImage}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-32"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="h-6 w-6 mr-2" />
+                    Adicionar Imagem
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => resetRoomForm()}>Cancelar</Button>
-            <Button onClick={handleSubmitRoom}>{editingRoom ? 'Atualizar' : 'Criar'}</Button>
+            <Button onClick={handleSubmitRoom} disabled={uploading}>
+              {uploading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {editingRoom ? 'Atualizar' : 'Criar'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
