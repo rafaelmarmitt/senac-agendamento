@@ -2,7 +2,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Users, DoorOpen, Wrench, Calendar, MapPin } from "lucide-react";
+import { Users, DoorOpen, Wrench, Calendar, MapPin, Bell } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 interface SalaDetalhesModalProps {
   open: boolean;
@@ -20,7 +21,7 @@ interface SalaDetalhesModalProps {
       horario: string;
       usuario: string;
     }>;
-  };
+  } | null;
   onAgendar?: () => void;
 }
 
@@ -30,6 +31,9 @@ export default function SalaDetalhesModal({
   sala,
   onAgendar 
 }: SalaDetalhesModalProps) {
+  // Early return se sala não existir
+  if (!sala) return null;
+
   const getStatusVariant = (status: string) => {
     switch (status) {
       case "disponivel": return "success";
@@ -46,6 +50,14 @@ export default function SalaDetalhesModal({
       case "manutencao": return "Em Manutenção";
       default: return status;
     }
+  };
+
+  const handleEntrarFila = () => {
+    toast({
+      title: "Adicionado à Lista de Espera",
+      description: "Você será notificado quando a sala ficar disponível.",
+    });
+    onOpenChange(false);
   };
 
   return (
@@ -141,13 +153,22 @@ export default function SalaDetalhesModal({
           )}
 
           {/* Ações */}
-          <div className="flex gap-2 pt-4">
-            {sala.status === "disponivel" && onAgendar && (
-              <Button onClick={onAgendar} className="flex-1">
-                Agendar esta Sala
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <div className="flex flex-col gap-2 pt-4">
+            <div className="flex gap-2">
+              {sala.status === "disponivel" && onAgendar && (
+                <Button onClick={onAgendar} className="flex-1">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Agendar esta Sala
+                </Button>
+              )}
+              {sala.status === "ocupada" && (
+                <Button onClick={handleEntrarFila} variant="secondary" className="flex-1">
+                  <Bell className="h-4 w-4 mr-2" />
+                  Entrar na Lista de Espera
+                </Button>
+              )}
+            </div>
+            <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full">
               Fechar
             </Button>
           </div>
