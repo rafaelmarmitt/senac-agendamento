@@ -33,33 +33,6 @@ export default function Footer() {
                   Salas Disponíveis
                 </Link>
               </li>
-              <li>
-                <Link to="/sobre" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                  Sobre o Sistema
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Suporte */}
-          <div>
-            <h3 className="font-semibold mb-4">Suporte</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link to="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                  Central de Ajuda
-                </Link>
-              </li>
-              <li>
-                <Link to="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                  Guia do Usuário
-                </Link>
-              </li>
-              <li>
-                <Link to="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                  Perguntas Frequentes
-                </Link>
-              </li>
             </ul>
           </div>
 
@@ -69,11 +42,11 @@ export default function Footer() {
             <ul className="space-y-3">
               <li className="flex items-start gap-2 text-sm text-muted-foreground">
                 <MapPin className="h-4 w-4 mt-0.5 text-primary" />
-                <span>Av. Exemplo, 123 - Centro</span>
+                <span>Rua Venâncio Aires, 300 - Centro</span>
               </li>
               <li className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Phone className="h-4 w-4 text-primary" />
-                <span>(11) 1234-5678</span>
+                <span>(51) 3711-6460</span>
               </li>
               <li className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Mail className="h-4 w-4 text-primary" />
