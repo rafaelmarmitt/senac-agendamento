@@ -127,27 +127,27 @@ export default function WizardAgendamento({ open, onOpenChange }: WizardAgendame
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Nova Reserva - Passo {step} de 4</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="space-y-2">
+          <DialogTitle className="text-lg sm:text-xl">Nova Reserva - Passo {step} de 4</DialogTitle>
+          <DialogDescription className="text-sm">
             Siga o assistente para criar sua reserva de forma rápida e fácil
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Progress Indicator */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
             {[1, 2, 3, 4].map((s) => (
               <div key={s} className="flex items-center">
                 <div
-                  className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                  className={`h-7 w-7 sm:h-8 sm:w-8 rounded-full flex items-center justify-center text-xs sm:text-sm ${
                     s <= step ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                   }`}
                 >
-                  {s < step ? <CheckCircle2 className="h-5 w-5" /> : s}
+                  {s < step ? <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" /> : s}
                 </div>
-                {s < 4 && <div className={`h-1 w-16 mx-2 ${s < step ? "bg-primary" : "bg-muted"}`} />}
+                {s < 4 && <div className={`h-1 w-8 sm:w-16 mx-1 sm:mx-2 ${s < step ? "bg-primary" : "bg-muted"}`} />}
               </div>
             ))}
           </div>
@@ -155,18 +155,18 @@ export default function WizardAgendamento({ open, onOpenChange }: WizardAgendame
           {/* Step 1: Data e Horário */}
           {step === 1 && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-4">
-                <CalendarIcon className="h-5 w-5 text-primary" />
-                <h3 className="text-lg font-semibold">Quando você precisa?</h3>
+              <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                <CalendarIcon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                <h3 className="text-base sm:text-lg font-semibold">Quando você precisa?</h3>
               </div>
               
-              <div className="flex justify-center">
+              <div className="flex justify-center overflow-x-auto">
                 <Calendar
                   mode="single"
                   selected={selectedDate}
                   onSelect={setSelectedDate}
                   disabled={(date) => date < new Date()}
-                  className="rounded-md border"
+                  className="rounded-md border scale-90 sm:scale-100 origin-top"
                 />
               </div>
 
@@ -221,9 +221,9 @@ export default function WizardAgendamento({ open, onOpenChange }: WizardAgendame
           {/* Step 2: Capacidade e Tipo */}
           {step === 2 && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Users className="h-5 w-5 text-primary" />
-                <h3 className="text-lg font-semibold">Para quantas pessoas e que tipo de espaço?</h3>
+              <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                <Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                <h3 className="text-base sm:text-lg font-semibold">Para quantas pessoas e que tipo de espaço?</h3>
               </div>
 
               <div>
@@ -257,9 +257,9 @@ export default function WizardAgendamento({ open, onOpenChange }: WizardAgendame
           {/* Step 3: Escolher Sala */}
           {step === 3 && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-4">
-                <MapPin className="h-5 w-5 text-primary" />
-                <h3 className="text-lg font-semibold">Salas disponíveis que atendem seus critérios</h3>
+              <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                <h3 className="text-base sm:text-lg font-semibold">Salas disponíveis que atendem seus critérios</h3>
               </div>
 
               {salasDisponiveis.length === 0 ? (
@@ -278,20 +278,20 @@ export default function WizardAgendamento({ open, onOpenChange }: WizardAgendame
                       }`}
                       onClick={() => setSalaSelecionada(sala.id)}
                     >
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-semibold">{sala.nome}</h4>
-                              <Badge variant="secondary">{getTipoLabel(sala.tipo)}</Badge>
+                      <CardContent className="p-3 sm:p-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="space-y-2 flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h4 className="font-semibold text-sm sm:text-base">{sala.nome}</h4>
+                              <Badge variant="secondary" className="text-xs">{getTipoLabel(sala.tipo)}</Badge>
                             </div>
-                            <p className="text-sm text-muted-foreground flex items-center gap-1">
-                              <Users className="h-4 w-4" />
+                            <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1">
+                              <Users className="h-3 w-3 sm:h-4 sm:w-4" />
                               Capacidade: {sala.capacidade} pessoas
                             </p>
-                            <p className="text-sm text-muted-foreground flex items-center gap-1">
-                              <MapPin className="h-4 w-4" />
-                              {sala.localizacao}
+                            <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1 truncate">
+                              <MapPin className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                              <span className="truncate">{sala.localizacao}</span>
                             </p>
                             <div className="flex flex-wrap gap-1">
                               {sala.recursos.slice(0, 3).map((recurso) => (
@@ -307,7 +307,7 @@ export default function WizardAgendamento({ open, onOpenChange }: WizardAgendame
                             </div>
                           </div>
                           {salaSelecionada === sala.id && (
-                            <CheckCircle2 className="h-6 w-6 text-primary" />
+                            <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6 text-primary flex-shrink-0" />
                           )}
                         </div>
                       </CardContent>
@@ -321,25 +321,26 @@ export default function WizardAgendamento({ open, onOpenChange }: WizardAgendame
           {/* Step 4: Detalhes e Recursos */}
           {step === 4 && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Laptop className="h-5 w-5 text-primary" />
-                <h3 className="text-lg font-semibold">Motivo e Recursos Adicionais</h3>
+              <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                <Laptop className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                <h3 className="text-base sm:text-lg font-semibold">Motivo e Recursos Adicionais</h3>
               </div>
 
               <div>
-                <Label htmlFor="motivo">Motivo da Reserva</Label>
+                <Label htmlFor="motivo" className="text-sm sm:text-base">Motivo da Reserva</Label>
                 <Textarea
                   id="motivo"
                   placeholder="Ex: Aula prática de programação web"
                   value={motivo}
                   onChange={(e) => setMotivo(e.target.value)}
                   rows={3}
+                  className="text-sm sm:text-base"
                 />
               </div>
 
               <div>
-                <Label>Recursos Adicionais (opcional)</Label>
-                <div className="grid grid-cols-2 gap-2 mt-2">
+                <Label className="text-sm sm:text-base">Recursos Adicionais (opcional)</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
                   {recursosDisponiveis.map((recurso) => (
                     <div key={recurso} className="flex items-center space-x-2">
                       <Checkbox
@@ -347,7 +348,7 @@ export default function WizardAgendamento({ open, onOpenChange }: WizardAgendame
                         checked={recursosExtras.includes(recurso)}
                         onCheckedChange={() => toggleRecurso(recurso)}
                       />
-                      <Label htmlFor={recurso} className="cursor-pointer text-sm">
+                      <Label htmlFor={recurso} className="cursor-pointer text-xs sm:text-sm">
                         {recurso}
                       </Label>
                     </div>
@@ -355,10 +356,10 @@ export default function WizardAgendamento({ open, onOpenChange }: WizardAgendame
                 </div>
               </div>
 
-              <Card className="bg-secondary/30 p-4">
-                <h4 className="font-semibold mb-2">Resumo da Reserva</h4>
-                <div className="space-y-1 text-sm">
-                  <p>
+              <Card className="bg-secondary/30 p-3 sm:p-4">
+                <h4 className="font-semibold mb-2 text-sm sm:text-base">Resumo da Reserva</h4>
+                <div className="space-y-1 text-xs sm:text-sm">
+                  <p className="break-words">
                     <strong>Data:</strong> {selectedDate?.toLocaleDateString("pt-BR") || "Não selecionada"}
                   </p>
                   <p>
@@ -369,7 +370,7 @@ export default function WizardAgendamento({ open, onOpenChange }: WizardAgendame
                       <strong>Recorrência:</strong> {recorrenciaTipo}
                     </p>
                   )}
-                  <p>
+                  <p className="break-words">
                     <strong>Sala:</strong>{" "}
                     {rooms.find((s) => s.id === salaSelecionada)?.nome || "Não selecionada"}
                   </p>
@@ -377,7 +378,7 @@ export default function WizardAgendamento({ open, onOpenChange }: WizardAgendame
                     <strong>Participantes:</strong> {capacidade || "Não informado"}
                   </p>
                   {recursosExtras.length > 0 && (
-                    <p>
+                    <p className="break-words">
                       <strong>Recursos extras:</strong> {recursosExtras.join(", ")}
                     </p>
                   )}
@@ -387,10 +388,16 @@ export default function WizardAgendamento({ open, onOpenChange }: WizardAgendame
           )}
 
           {/* Navigation Buttons */}
-          <div className="flex justify-between pt-4 border-t">
-            <Button variant="outline" onClick={handlePrevious} disabled={step === 1}>
+          <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-0 pt-4 border-t">
+            <Button 
+              variant="outline" 
+              onClick={handlePrevious} 
+              disabled={step === 1}
+              className="w-full sm:w-auto order-2 sm:order-1"
+            >
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Anterior
+              <span className="hidden sm:inline">Anterior</span>
+              <span className="sm:hidden">Voltar</span>
             </Button>
             {step < 4 ? (
               <Button
@@ -400,12 +407,17 @@ export default function WizardAgendamento({ open, onOpenChange }: WizardAgendame
                   (step === 2 && (!capacidade || !tipoSala)) ||
                   (step === 3 && !salaSelecionada)
                 }
+                className="w-full sm:w-auto order-1 sm:order-2"
               >
                 Próximo
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             ) : (
-              <Button onClick={handleSubmit} disabled={!motivo || loading}>
+              <Button 
+                onClick={handleSubmit} 
+                disabled={!motivo || loading}
+                className="w-full sm:w-auto order-1 sm:order-2"
+              >
                 {loading ? "Enviando..." : "Enviar Solicitação"}
               </Button>
             )}

@@ -71,15 +71,15 @@ export default function AgendamentoModal({ open, onOpenChange, sala }: Agendamen
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Solicitar Agendamento</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="space-y-2">
+          <DialogTitle className="text-lg sm:text-xl">Solicitar Agendamento</DialogTitle>
+          <DialogDescription className="text-sm">
             {sala ? `Reservar ${sala.nome}` : "Preencha os detalhes da sua reserva"}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           {!sala && (
             <div className="space-y-2">
               <Label htmlFor="sala">Sala</Label>
@@ -96,10 +96,10 @@ export default function AgendamentoModal({ open, onOpenChange, sala }: Agendamen
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="data" className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
+              <Label htmlFor="data" className="flex items-center gap-2 text-sm sm:text-base">
+                <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
                 Data
               </Label>
               <Input
@@ -108,12 +108,13 @@ export default function AgendamentoModal({ open, onOpenChange, sala }: Agendamen
                 required
                 value={formData.data}
                 onChange={(e) => setFormData({ ...formData, data: e.target.value })}
+                className="text-sm sm:text-base"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="participantes" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
+              <Label htmlFor="participantes" className="flex items-center gap-2 text-sm sm:text-base">
+                <Users className="h-3 w-3 sm:h-4 sm:w-4" />
                 Número de Participantes
               </Label>
               <Input
@@ -124,6 +125,7 @@ export default function AgendamentoModal({ open, onOpenChange, sala }: Agendamen
                 max={sala?.capacidade}
                 value={formData.participantes}
                 onChange={(e) => setFormData({ ...formData, participantes: e.target.value })}
+                className="text-sm sm:text-base"
               />
               {sala && (
                 <p className="text-xs text-muted-foreground">
@@ -133,10 +135,10 @@ export default function AgendamentoModal({ open, onOpenChange, sala }: Agendamen
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="horarioInicio" className="flex items-center gap-2">
-                <Clock className="h-4 w-4" />
+              <Label htmlFor="horarioInicio" className="flex items-center gap-2 text-sm sm:text-base">
+                <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
                 Horário de Início
               </Label>
               <Input
@@ -145,36 +147,38 @@ export default function AgendamentoModal({ open, onOpenChange, sala }: Agendamen
                 required
                 value={formData.horarioInicio}
                 onChange={(e) => setFormData({ ...formData, horarioInicio: e.target.value })}
+                className="text-sm sm:text-base"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="horarioFim">Horário de Término</Label>
+              <Label htmlFor="horarioFim" className="text-sm sm:text-base">Horário de Término</Label>
               <Input
                 id="horarioFim"
                 type="time"
                 required
                 value={formData.horarioFim}
                 onChange={(e) => setFormData({ ...formData, horarioFim: e.target.value })}
+                className="text-sm sm:text-base"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="motivo">Motivo da Reserva</Label>
+            <Label htmlFor="motivo" className="text-sm sm:text-base">Motivo da Reserva</Label>
             <Textarea
               id="motivo"
               required
               placeholder="Descreva o propósito do uso da sala..."
               value={formData.motivo}
               onChange={(e) => setFormData({ ...formData, motivo: e.target.value })}
-              className="min-h-[100px]"
+              className="min-h-[100px] text-sm sm:text-base"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="equipamentos" className="flex items-center gap-2">
-              <Wrench className="h-4 w-4" />
+            <Label htmlFor="equipamentos" className="flex items-center gap-2 text-sm sm:text-base">
+              <Wrench className="h-3 w-3 sm:h-4 sm:w-4" />
               Equipamentos Necessários (Padrão da Sala)
             </Label>
             <Textarea
@@ -183,6 +187,7 @@ export default function AgendamentoModal({ open, onOpenChange, sala }: Agendamen
               value={formData.equipamentos}
               onChange={(e) => setFormData({ ...formData, equipamentos: e.target.value })}
               rows={2}
+              className="text-sm sm:text-base"
             />
             <p className="text-xs text-muted-foreground">
               Equipamentos já disponíveis na sala. Use o campo abaixo para solicitar recursos extras.
@@ -190,14 +195,14 @@ export default function AgendamentoModal({ open, onOpenChange, sala }: Agendamen
           </div>
 
           <div className="space-y-3">
-            <Label className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
+            <Label className="flex items-center gap-2 text-sm sm:text-base">
+              <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
               Recursos Adicionais (Opcional)
             </Label>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               Selecione recursos extras que você precisa para sua atividade:
             </p>
-            <div className="grid grid-cols-2 gap-3 p-4 bg-secondary/30 rounded-lg">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 sm:p-4 bg-secondary/30 rounded-lg">
               {recursosAdicionais.map((recurso) => (
                 <div key={recurso} className="flex items-start space-x-2">
                   <Checkbox
@@ -207,7 +212,7 @@ export default function AgendamentoModal({ open, onOpenChange, sala }: Agendamen
                   />
                   <Label
                     htmlFor={`recurso-${recurso}`}
-                    className="text-sm cursor-pointer leading-tight"
+                    className="text-xs sm:text-sm cursor-pointer leading-tight"
                   >
                     {recurso}
                   </Label>
@@ -226,11 +231,16 @@ export default function AgendamentoModal({ open, onOpenChange, sala }: Agendamen
             )}
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => onOpenChange(false)}
+              className="w-full sm:w-auto"
+            >
               Cancelar
             </Button>
-            <Button type="submit">
+            <Button type="submit" className="w-full sm:w-auto">
               Enviar Solicitação
             </Button>
           </DialogFooter>
